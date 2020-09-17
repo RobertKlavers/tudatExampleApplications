@@ -8,21 +8,15 @@
  *    http://tudat.tudelft.nl/LICENSE.
  */
 
-#include <boost/make_shared.hpp>
 #include <boost/shared_ptr.hpp>
-#include <boost/test/floating_point_comparison.hpp>
-#include <boost/test/unit_test.hpp>
 #include <Eigen/Dense>
-#include <math.h>
+#include <cmath>
 #include <iostream>
 
 #include "Tudat/Astrodynamics/Ephemerides/approximatePlanetPositions.h"
 #include "Tudat/Astrodynamics/LowThrustTrajectories/simsFlanagan.h"
-#include "Tudat/Astrodynamics/LowThrustTrajectories/simsFlanaganModel.h"
 #include "Tudat/Astrodynamics/LowThrustTrajectories/simsFlanaganOptimisationSetup.h"
 #include "Tudat/Astrodynamics/LowThrustTrajectories/ShapeBasedMethods/hodographicShaping.h"
-#include "Tudat/Astrodynamics/LowThrustTrajectories/ShapeBasedMethods/baseFunctionsHodographicShaping.h"
-#include "Tudat/Astrodynamics/LowThrustTrajectories/ShapeBasedMethods/compositeFunctionHodographicShaping.h"
 #include "Tudat/Astrodynamics/LowThrustTrajectories/ShapeBasedMethods/createBaseFunctionHodographicShaping.h"
 #include "pagmo/algorithms/de1220.hpp"
 #include "Problems/applicationOutput.h"
@@ -172,10 +166,19 @@ int main( )
     // Create hodographic-shaping object with defined velocity functions and boundary conditions.
     std::shared_ptr< shape_based_methods::HodographicShaping > hodographicShaping =
             std::make_shared< shape_based_methods::HodographicShaping >(
-                cartesianStateDepartureBody, cartesianStateArrivalBody, timeOfFlight, numberOfRevolutions,
-                bodyMap, bodyToPropagate, centralBody, radialVelocityFunctionComponents, normalVelocityFunctionComponents,
-                axialVelocityFunctionComponents, freeCoefficientsRadialVelocityFunction, freeCoefficientsNormalVelocityFunction,
-                freeCoefficientsAxialVelocityFunction );
+                cartesianStateDepartureBody,
+                cartesianStateArrivalBody,
+                timeOfFlight,
+                spice_interface::getBodyGravitationalParameter( centralBody ),
+                numberOfRevolutions,
+                radialVelocityFunctionComponents,
+                normalVelocityFunctionComponents,
+                axialVelocityFunctionComponents,
+                freeCoefficientsRadialVelocityFunction,
+                freeCoefficientsNormalVelocityFunction,
+                freeCoefficientsAxialVelocityFunction,
+                mass
+            );
 
 
 
@@ -202,11 +205,10 @@ int main( )
 
     std::map< double, Eigen::Vector6d > hodographicShapingTrajectory;
     std::map< double, Eigen::VectorXd > hodographicShapingMassProfile;
-    std::map< double, Eigen::VectorXd > hodographicShapingThrustProfile;
+    std::map< double, Eigen::VectorXd > hodographicShapingThrustForceProfile;
     std::map< double, Eigen::VectorXd > hodographicShapingThrustAcceleration;
     hodographicShaping->getTrajectory( epochsToSaveResults, hodographicShapingTrajectory );
-    hodographicShaping->getMassProfile( epochsToSaveResults, hodographicShapingMassProfile, specificImpulseFunction, integratorSettings );
-    hodographicShaping->getThrustProfile( epochsToSaveResults, hodographicShapingThrustProfile, specificImpulseFunction, integratorSettings );
+    hodographicShaping->getThrustForceProfile( epochsToSaveResults, hodographicShapingThrustForceProfile, specificImpulseFunction, integratorSettings );
     hodographicShaping->getThrustAccelerationProfile( epochsToSaveResults, hodographicShapingThrustAcceleration,
                                                       specificImpulseFunction, integratorSettings );
 
@@ -248,7 +250,7 @@ int main( )
     }
 
 
-    bodyMap[ bodyToPropagate ]->setConstantBodyMass( mass );
+    bodyMap[ bodyToPropagate ]->setConstantBodyMass(mass );
 
     // Define optimisation algorithm.
     algorithm optimisationAlgorithm{ pagmo::de1220() };
@@ -257,8 +259,15 @@ int main( )
                 optimisationAlgorithm, 10, 1024, 1.0e-6, std::make_pair( initialGuessVector, 0.3 ) );
 
     SimsFlanagan simsFlanagan = SimsFlanagan(
-                cartesianStateDepartureBody, cartesianStateArrivalBody, maximumThrust, specificImpulseFunction, numberSegments,
-                timeOfFlight, bodyMap, bodyToPropagate, centralBody, optimisationSettings );
+                cartesianStateDepartureBody,
+                cartesianStateArrivalBody,
+                spice_interface::getBodyGravitationalParameter( centralBody ),
+                mass,
+                maximumThrust,
+                specificImpulseFunction,
+                numberSegments,
+                timeOfFlight,
+                optimisationSettings );
 
 
     std::map< double, Eigen::Vector6d > SimsFlanaganTrajectory;
@@ -267,7 +276,7 @@ int main( )
     std::map< double, Eigen::VectorXd > SimsFlanaganThrustAcceleration;
     simsFlanagan.getTrajectory( epochsToSaveResults, SimsFlanaganTrajectory );
     simsFlanagan.getMassProfile( epochsToSaveResults, SimsFlanaganMassProfile, specificImpulseFunction, integratorSettings );
-    simsFlanagan.getThrustProfile( epochsToSaveResults, SimsFlanaganThrustProfile, specificImpulseFunction, integratorSettings );
+    simsFlanagan.getThrustForceProfile( epochsToSaveResults, SimsFlanaganThrustProfile, specificImpulseFunction, integratorSettings );
     simsFlanagan.getThrustAccelerationProfile( epochsToSaveResults, SimsFlanaganThrustAcceleration, specificImpulseFunction, integratorSettings );
 
 
@@ -287,7 +296,7 @@ int main( )
                                           std::numeric_limits< double >::digits10,
                                           "," );
 
-    input_output::writeDataMapToTextFile( hodographicShapingThrustProfile,
+    input_output::writeDataMapToTextFile( hodographicShapingThrustForceProfile,
                                           "hodographicShapingThrustProfile.dat",
                                           tudat_pagmo_applications::getOutputPath( ),
                                           "",
