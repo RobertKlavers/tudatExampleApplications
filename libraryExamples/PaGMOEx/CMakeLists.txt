@@ -222,4 +222,10 @@ if( BUILD_WITH_SOCIS_2019 )
  target_link_libraries(application_PagmoSimsFlanaganTrajectoryExample pagmo2_library_example_problems tudat_low_thrust_trajectories tudat_shape_based_methods
      tudat_numerical_quadrature ${TUDAT_PROPAGATION_LIBRARIES} pthread pagmo ${Boost_LIBRARIES} )
 
+ # Add low-thrust trajectory design example
+ add_executable(application_HybridMethodTrajectoryExample "${SRCROOT}/hybridMethodTrajectoryExample.cpp")
+ setup_executable_target(application_HybridMethodTrajectoryExample "${SRCROOT}")
+ target_link_libraries(application_HybridMethodTrajectoryExample pagmo2_library_example_problems tudat_low_thrust_trajectories tudat_shape_based_methods
+         tudat_numerical_quadrature ${TUDAT_PROPAGATION_LIBRARIES} pthread pagmo ${Boost_LIBRARIES} )
+
 endif( )
