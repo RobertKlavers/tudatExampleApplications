@@ -31,10 +31,9 @@ int main( )
 
     spice_interface::loadStandardSpiceKernels( );
 
-    double maximumThrust = 0.450;
-    double specificImpulse = 3000.0;
-    double mass = 1800.0;
-    double initialMass = mass;
+    double maximumThrust = 0.350;
+    double specificImpulse = 2000.0;
+    double mass = 2000.0;
 
     std::function< double( const double ) > specificImpulseFunction = [ = ] ( const double currentTime )
     {
@@ -42,7 +41,7 @@ int main( )
     };
 
     double julianDate = 1000.0 * physical_constants::JULIAN_DAY;
-    double timeOfFlight = 100.0 * physical_constants::JULIAN_DAY;
+    double timeOfFlight = 20.0 * physical_constants::JULIAN_DAY;
 
     // Define body settings for simulation.
     std::vector< std::string > bodiesToCreate;
@@ -76,9 +75,9 @@ int main( )
 
     // Initial and final states in keplerian elements.
     Eigen::Vector6d initialKeplerianElements = ( Eigen::Vector6d( ) << 24505.9e3, 0.725, 7.0 * mathematical_constants::PI / 180.0,
-            0.0, 0.0, 0.0 ).finished( );
+            1.0e-12, 1.0e-12, 1.0e-12 ).finished( );
     Eigen::Vector6d finalKeplerianElements = ( Eigen::Vector6d( ) << 42164.65e3, 5.53e-4, 7.41e-5 * mathematical_constants::PI / 180.0,
-            0.0, 0.0, 0.0 ).finished( );
+            1.0e-12, 1.0e-12, 1.0e-12 ).finished( );
 
     // Initial and final states in cartesian coordinates.
     Eigen::Vector6d stateAtDeparture = orbital_element_conversions::convertKeplerianToCartesianElements(
@@ -98,25 +97,38 @@ int main( )
     std::shared_ptr< simulation_setup::OptimisationSettings > optimisationSettings =
             std::make_shared< simulation_setup::OptimisationSettings >( optimisationAlgorithm, 1, 10, 1.0e-3 );
 
-    HybridMethodModel = HybridMethodModel();
+    Eigen::VectorXd initialCostates; initialCostates.resize( 5 );
+    Eigen::VectorXd finalCostates; finalCostates.resize( 5 );
+
+    HybridMethodModel hybridMethodModel = HybridMethodModel(stateAtDeparture, stateAtArrival, initialCostates, finalCostates,
+                                                            maximumThrust, specificImpulse, timeOfFlight, bodyMap, bodyToPropagate, centralBody, integratorSettings);
+
+
+
+    //    hybridMethodModel_ = std::make_shared< HybridMethodModel >(
+//            stateAtDeparture_, stateAtArrival_, initialCostates, finalCostates, maximumThrust_, specificImpulse_, timeOfFlight_,
+//            bodyMap_, bodyToPropagate_, centralBody_, integratorSettings );
 
     // Create hybrid method trajectory.
-    HybridMethod hybridMethod = HybridMethod( stateAtDeparture, stateAtArrival, centralBodyGravitationalParameter, initialMass,
-                                              maximumThrust, specificImpulse,
-                                              timeOfFlight, bodyMap, bodyToPropagate, centralBody, integratorSettings,
-                                              optimisationSettings );
-    int numberSteps = 10;
+//    HybridMethod hybridMethod = HybridMethod( stateAtDeparture, stateAtArrival, centralBodyGravitationalParameter, initialMass,
+//                                              maximumThrust, specificImpulse,
+//                                              timeOfFlight, bodyMap, bodyToPropagate, centralBody, integratorSettings,
+//                                              optimisationSettings );
+    int numberSteps = 30;
     std::map< double, Eigen::Vector6d > trajectory;
     std::vector< double > epochsVector;
 
     for ( int i = 1 ; i <= numberSteps ; i++ )
     {
-        epochsVector.push_back( timeOfFlight / numberSteps * i );
+        epochsVector.push_back( (2 * mathematical_constants::PI / numberSteps) * i );
     }
 
-    hybridMethod.getTrajectory( epochsVector, trajectory );
+    std::map< double, Eigen::Vector6d > propagatedTrajectory;
+    hybridMethodModel.propagateTrajectoryForTheta( epochsVector, propagatedTrajectory );
 
-    input_output::writeDataMapToTextFile( trajectory,
+//    hybridMethod.getTrajectory( epochsVector, trajectory );
+
+    input_output::writeDataMapToTextFile( propagatedTrajectory,
                                           "HybridMethodTrajectory.dat",
                                           tudat_pagmo_applications::getOutputPath( ),
                                           "",
