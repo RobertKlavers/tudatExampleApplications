@@ -100,33 +100,21 @@ int main( )
     Eigen::VectorXd initialCostates; initialCostates.resize( 5 );
     Eigen::VectorXd finalCostates; finalCostates.resize( 5 );
 
-    HybridMethodModel hybridMethodModel = HybridMethodModel(stateAtDeparture, stateAtArrival, initialCostates, finalCostates,
-                                                            maximumThrust, specificImpulse, timeOfFlight, bodyMap, bodyToPropagate, centralBody, integratorSettings);
-
-
-
-    //    hybridMethodModel_ = std::make_shared< HybridMethodModel >(
-//            stateAtDeparture_, stateAtArrival_, initialCostates, finalCostates, maximumThrust_, specificImpulse_, timeOfFlight_,
-//            bodyMap_, bodyToPropagate_, centralBody_, integratorSettings );
-
     // Create hybrid method trajectory.
-//    HybridMethod hybridMethod = HybridMethod( stateAtDeparture, stateAtArrival, centralBodyGravitationalParameter, initialMass,
-//                                              maximumThrust, specificImpulse,
-//                                              timeOfFlight, bodyMap, bodyToPropagate, centralBody, integratorSettings,
-//                                              optimisationSettings );
-    int numberSteps = 30;
-    std::map< double, Eigen::Vector6d > trajectory;
-    std::vector< double > epochsVector;
+    HybridMethod hybridMethod = HybridMethod( stateAtDeparture, stateAtArrival, centralBodyGravitationalParameter, mass,
+                                              maximumThrust, specificImpulse,
+                                              timeOfFlight, bodyMap, bodyToPropagate, centralBody, integratorSettings,
+                                              optimisationSettings );
 
-    for ( int i = 1 ; i <= numberSteps ; i++ )
-    {
-        epochsVector.push_back( (2 * mathematical_constants::PI / numberSteps) * i );
-    }
+    std::shared_ptr< HybridMethodModel > hybridMethodModel = hybridMethod.getOptimalHybridMethodModel();
+
+    // Per orbit
+    int numberSteps = 30;
 
     std::map< double, Eigen::Vector6d > propagatedTrajectory;
-    hybridMethodModel.propagateTrajectoryForTheta( epochsVector, propagatedTrajectory );
-
-//    hybridMethod.getTrajectory( epochsVector, trajectory );
+    std::cout << "PropagateTrajectoryForTheta" << std::endl;
+    Eigen::Vector6d averageProgression = hybridMethodModel->propagateTrajectoryForTheta( propagatedTrajectory, numberSteps );
+    std::cout << "averageProgression:\n" << averageProgression << std::endl;
 
     input_output::writeDataMapToTextFile( propagatedTrajectory,
                                           "HybridMethodTrajectory.dat",
