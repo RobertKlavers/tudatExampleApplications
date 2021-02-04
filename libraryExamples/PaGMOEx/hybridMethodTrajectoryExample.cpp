@@ -41,7 +41,7 @@ int main( )
     };
 
     double julianDate = 1000.0 * physical_constants::JULIAN_DAY;
-    double timeOfFlight = 20.0 * physical_constants::JULIAN_DAY;
+    double timeOfFlight = 8.0 * physical_constants::JULIAN_DAY;
 
     // Define body settings for simulation.
     std::vector< std::string > bodiesToCreate;
@@ -75,7 +75,7 @@ int main( )
 
     // Initial and final states in keplerian elements.
     Eigen::Vector6d initialKeplerianElements = ( Eigen::Vector6d( ) << 24505.9e3, 0.725, 7.0 * mathematical_constants::PI / 180.0,
-            1.0e-12, 1.0e-12, 1.0e-12 ).finished( );
+            7.0 * mathematical_constants::PI / 180.0, 7.0 * mathematical_constants::PI / 180.0, 1.0e-12 ).finished( );
     Eigen::Vector6d finalKeplerianElements = ( Eigen::Vector6d( ) << 42164.65e3, 5.53e-4, 7.41e-5 * mathematical_constants::PI / 180.0,
             1.0e-12, 1.0e-12, 1.0e-12 ).finished( );
 
@@ -86,7 +86,8 @@ int main( )
             finalKeplerianElements, bodyMap[ "Earth" ]->getGravityFieldModel()->getGravitationalParameter() );
 
     // Define integrator settings.
-    double stepSize = ( timeOfFlight ) / static_cast< double >( 40000 );
+    double numberOfSteps = 40000;
+    double stepSize = ( timeOfFlight ) / static_cast< double >( numberOfSteps );
     std::shared_ptr< numerical_integrators::IntegratorSettings< double > > integratorSettings =
             std::make_shared< numerical_integrators::IntegratorSettings< double > >
                     ( numerical_integrators::rungeKutta4, 0.0, stepSize );
@@ -108,13 +109,28 @@ int main( )
 
     std::shared_ptr< HybridMethodModel > hybridMethodModel = hybridMethod.getOptimalHybridMethodModel();
 
-    // Per orbit
-    int numberSteps = 30;
-
+    // Results for full propagation
     std::map< double, Eigen::Vector6d > propagatedTrajectory;
+    std::vector< double > epochsToSaveResults;
+    for ( int i = 0 ; i <= numberOfSteps ; i++ )
+    {
+        epochsToSaveResults.push_back( i * stepSize );
+    }
+
+    hybridMethod.getTrajectory(epochsToSaveResults, propagatedTrajectory);
     std::cout << "PropagateTrajectoryForTheta" << std::endl;
-    Eigen::Vector6d averageProgression = hybridMethodModel->propagateTrajectoryForTheta( propagatedTrajectory, numberSteps );
-    std::cout << "averageProgression:\n" << averageProgression << std::endl;
+
+    // Number of Orbital Averaging Steps
+    int numberOfOASteps = 30;
+    double averagingTime = 24 * 3600 * 4; // 4 days
+
+    Eigen::Vector6d firstOACartesianState = hybridMethodModel->computeAverages( stateAtDeparture, 0.0, numberOfOASteps, averagingTime );
+    Eigen::Vector6d secondOACartesianState = hybridMethodModel->computeAverages( firstOACartesianState, averagingTime, numberOfOASteps, averagingTime );
+//    std::cout << "finalOAState:\n" << averageProgression << std::endl;
+
+    std::cout << "OA STates: \n" << firstOACartesianState << ", " << secondOACartesianState << std::endl;
+
+    // take average progression, add those to the initialState and outputput as cartesian
 
     input_output::writeDataMapToTextFile( propagatedTrajectory,
                                           "HybridMethodTrajectory.dat",
