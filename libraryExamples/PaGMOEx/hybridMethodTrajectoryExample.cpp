@@ -122,13 +122,16 @@ int main( )
 
     // Number of Orbital Averaging Steps
     int numberOfOASteps = 30;
-    double averagingTime = 24 * 3600 * 4; // 4 days
+    double averagingTime = 4.0 * physical_constants::JULIAN_DAY; // 4 days
 
     Eigen::Vector6d firstOACartesianState = hybridMethodModel->computeAverages( stateAtDeparture, 0.0, numberOfOASteps, averagingTime );
     Eigen::Vector6d secondOACartesianState = hybridMethodModel->computeAverages( firstOACartesianState, averagingTime, numberOfOASteps, averagingTime );
 //    std::cout << "finalOAState:\n" << averageProgression << std::endl;
 
-    std::cout << "OA STates: \n" << firstOACartesianState << ", " << secondOACartesianState << std::endl;
+    const Eigen::IOFormat CleanFmt(4, 0, ", ", "\n","[", "]");
+
+
+    std::cout << "OA STates: \n" << firstOACartesianState.transpose().format(CleanFmt) << "\n" << secondOACartesianState.transpose().format(CleanFmt) << std::endl;
 
     // take average progression, add those to the initialState and outputput as cartesian
 
