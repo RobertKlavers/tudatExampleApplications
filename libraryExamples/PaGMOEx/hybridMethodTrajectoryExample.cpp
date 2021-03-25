@@ -20,6 +20,10 @@
 #include "Problems/applicationOutput.h"
 #include "Tudat/Astrodynamics/BasicAstrodynamics/celestialBodyConstants.h"
 
+std::map< double, Eigen::Vector6d > propagateBenchmark() {
+    std::cout << "omg " << std::endl;
+}
+
 int main( )
 {
     using namespace tudat;
@@ -40,12 +44,12 @@ int main( )
         return specificImpulse;
     };
 
-    double julianDate = 1000.0 * physical_constants::JULIAN_DAY;
-    double timeOfFlight = 8.0 * physical_constants::JULIAN_DAY;
+    double julianDate = 0.0 * physical_constants::JULIAN_DAY;
+    double timeOfFlight = 20.0 * physical_constants::JULIAN_DAY;
 
     // Define body settings for simulation.
     std::vector< std::string > bodiesToCreate;
-    bodiesToCreate.push_back( "Sun" );
+    // bodiesToCreate.push_back( "Sun" );
     bodiesToCreate.push_back( "Earth" );
 
     // Create body objects.
@@ -98,9 +102,6 @@ int main( )
     std::shared_ptr< simulation_setup::OptimisationSettings > optimisationSettings =
             std::make_shared< simulation_setup::OptimisationSettings >( optimisationAlgorithm, 1, 10, 1.0e-3 );
 
-    Eigen::VectorXd initialCostates; initialCostates.resize( 5 );
-    Eigen::VectorXd finalCostates; finalCostates.resize( 5 );
-
     // Create hybrid method trajectory.
     HybridMethod hybridMethod = HybridMethod( stateAtDeparture, stateAtArrival, centralBodyGravitationalParameter, mass,
                                               maximumThrust, specificImpulse,
@@ -116,22 +117,56 @@ int main( )
     {
         epochsToSaveResults.push_back( i * stepSize );
     }
-
+    // Propagate trajectory using CI
     hybridMethod.getTrajectory(epochsToSaveResults, propagatedTrajectory);
-    std::cout << "PropagateTrajectoryForTheta" << std::endl;
 
-    // Number of Orbital Averaging Steps
-    int numberOfOASteps = 30;
-    double averagingTime = 4.0 * physical_constants::JULIAN_DAY; // 4 days
+    std::string caseName = "out-of-plane";
 
-    Eigen::Vector6d firstOACartesianState = hybridMethodModel->computeAverages( stateAtDeparture, 0.0, numberOfOASteps, averagingTime );
-    Eigen::Vector6d secondOACartesianState = hybridMethodModel->computeAverages( firstOACartesianState, averagingTime, numberOfOASteps, averagingTime );
-//    std::cout << "finalOAState:\n" << averageProgression << std::endl;
+    // Propagate trajectory using OA
+    std::vector<int> OAArcSteps = {30, 40, 50};             // n_k
+    std::vector<double> OAArcLengths = {3.0, 4.0, 5.0};     // t_OA
 
-    const Eigen::IOFormat CleanFmt(4, 0, ", ", "\n","[", "]");
+    for (int numberOfOASteps : OAArcSteps) {
+        for (double OAArcLength : OAArcLengths) {
+            std::cout << "Propagating Arc for n_k: " << numberOfOASteps << ", t_OA: " << OAArcLength << " days" << std::endl;
+            // Length of OA Arc in Seconds
+            double OAArcTime = OAArcLength * physical_constants::JULIAN_DAY;
 
+            // minimum number of arcs needed to reach TOF
+            int numberOfOAarcs = (int) floor(timeOfFlight / OAArcTime);
 
-    std::cout << "OA STates: \n" << firstOACartesianState.transpose().format(CleanFmt) << "\n" << secondOACartesianState.transpose().format(CleanFmt) << std::endl;
+            // Initialize propagation things
+            double currentTime = 0.0;
+            Eigen::Vector6d currentState = stateAtDeparture;
+
+            std::map< double, Eigen::Vector6d >  resultStates;
+            resultStates[0] = stateAtDeparture;
+
+            for (int i = 0; i < numberOfOAarcs; i++) {
+                std::pair< double, Eigen::Vector6d > finalArcResult = hybridMethodModel->computeAverages( currentState, currentTime, numberOfOASteps, OAArcTime );
+
+                Eigen::Vector6d stateAfterArc = finalArcResult.second;
+                currentTime = finalArcResult.first;
+                // currentTime += OAArcTime;
+                currentState = stateAfterArc;
+                resultStates[currentTime] = currentState;
+            }
+
+            std::pair< double, Eigen::Vector6d > finalOAState = hybridMethodModel->computeAverages( currentState, currentTime, numberOfOASteps, timeOfFlight - currentTime );
+            resultStates[finalOAState.first] = finalOAState.second;
+
+            std::stringstream fileNameOA;
+            fileNameOA << "OATrajectory_" << caseName << "_" << numberOfOASteps << "_" << OAArcLength << ".dat";
+
+            input_output::writeDataMapToTextFile( resultStates,
+                                                  fileNameOA.str(),
+                                                  tudat_pagmo_applications::getOutputPath( ),
+                                                  "",
+                                                  std::numeric_limits< double >::digits10,
+                                                  std::numeric_limits< double >::digits10,
+                                                  "," );
+        }
+    }
 
     // take average progression, add those to the initialState and outputput as cartesian
 
