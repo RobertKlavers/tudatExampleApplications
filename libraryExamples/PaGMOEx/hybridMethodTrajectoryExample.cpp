@@ -47,6 +47,8 @@ int main() {
 
     double julianDate = 0.0 * physical_constants::JULIAN_DAY;
     double timeOfFlight = 218 * physical_constants::JULIAN_DAY;
+    // timeOfBoudFlight
+    // double timeOfFlight = 35000.0 * 2;
 
     // Define body settings for simulation.
     std::vector<std::string> bodiesToCreate;
@@ -119,24 +121,54 @@ int main() {
                     1.0e-12,
                     1.0e-12,
                     1.0e-12).finished();
-    std::cout << "Setting up costates:" << std::endl;
 
+
+    // Initial State used for the boudestijn testcase
+    Eigen::Vector6d initialBoudElements = (
+            Eigen::Vector6d() << 20000.0e3,
+                    0.2,
+                    45.0 * mathematical_constants::PI / 180.0,
+                    1.0e-12,
+                    1.0e-12,
+                    1.0e-12).finished();
+    Eigen::Vector6d finalBoudElements = (
+            Eigen::Vector6d() << 20000.0e3,
+                    0.2,
+                    45.0 * mathematical_constants::PI / 180.0,
+                    1.0e-12,
+                    1.0e-12,
+                    1.0e-12).finished();
+
+
+
+    // ---- SETTING INITIAL AND FINAL COSTATES ----
+
+    // std::cout << "Setting up costates:" << std::endl;
+    //
+    // Eigen::VectorXd initialTestCostates(6);
+    // initialTestCostates << -0.021195, -38.677447, 42.482983, 499.322515, -67.364508, 10.0;
+    // Eigen::VectorXd finalTestCostates(6);
+    // finalTestCostates << -0.000078, 24.905070, 2.186083, 499.380629, 43.545684, 10.0;
+    //
+
+    // Simple Fixed Costates to try and reproduce Boudestijn's analysis
     Eigen::VectorXd initialTestCostates(6);
-    initialTestCostates << -0.021195, -38.677447, 42.482983, 499.322515, -67.364508, 10.0;
-
+    initialTestCostates << 1.0e-9, 1.0e-9, 1.0e-9, 1.0e9, 1.0e9, 10.0;
     Eigen::VectorXd finalTestCostates(6);
-    finalTestCostates << -0.000078, 24.905070, 2.186083, 499.380629, 43.545684, 10.0;
+    finalTestCostates << 1.0e-9, 1.0e-9, 1.0e-9, 1.0e9, 1.0e9, 10.0;
 
-    // std::cout << initialTestCostates.transpose() << " <> " << finalTestCostates.transpose() << std::endl;
+
+    std::cout << initialTestCostates.transpose() << " <> " << finalTestCostates.transpose() << std::endl;
 
     // Initial and final states in cartesian coordinates.
     Eigen::Vector6d stateAtDeparture = orbital_element_conversions::convertKeplerianToCartesianElements(
-            initialTestKeplerianElements, bodyMap["Earth"]->getGravityFieldModel()->getGravitationalParameter());
+            initialBoudElements, bodyMap["Earth"]->getGravityFieldModel()->getGravitationalParameter());
+    //Guess we don't need thos?
     Eigen::Vector6d stateAtArrival;
 
     // stateAtArrival = orbital_element_conversions::convertKeplerianToCartesianElements(
     //         finalKeplerianElements, bodyMap["Earth"]->getGravityFieldModel()->getGravitationalParameter());
-
+    //
     // std::cout << initialKeplerianElements << std::endl;
     // std::cout << finalKeplerianElements << std::endl;
     //
@@ -178,8 +210,12 @@ int main() {
     }
     std::map<double, Eigen::Vector6d> propagatedTestTrajectory;
     std::cout << "Propagating HybridMethod Test" << std::endl;
-    hybridMethodModelTest.propagateTrajectory(testEpochsToSave, propagatedTestTrajectory);
+    // hybridMethodModelTest.propagateTrajectory(testEpochsToSave, propagatedTestTrajectory);
 
+    // Just directly propagate a single Trajectory (not sure why the propagating to specific epochs is/was eneded
+    // Eigen::Vector6d finalPropagatedState = hybridMethodModelTest.propagateTrajectory( julianDate, julianDate + timeOfFlight, stateAtDeparture, initialMass, weirdIntegratorSettings ).first;
+
+    //Skip saving the output for now?
     input_output::writeDataMapToTextFile(propagatedTestTrajectory,
                                          "HybridMethodTrajectoryTest.dat",
                                          tudat_pagmo_applications::getOutputPath(),
