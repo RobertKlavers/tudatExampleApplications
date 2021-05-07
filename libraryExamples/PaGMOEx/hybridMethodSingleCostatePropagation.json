@@ -1,0 +1,30 @@
+{
+  "case": "SingleCostatePropagation",
+  "optimization": {
+    "numberOfSteps": 15000
+  },
+  "vehicle": {
+    "maximumThrust": 0.401706,
+    "specificImpulse": 3300.0,
+    "initialMass": 1200.0
+  },
+  "trajectory": {
+    "timeOfFlight": 50.0,
+    "initialKeplerianElements": [
+      25000.0e3,
+      0.2,
+      0.785398,
+      1.0e-12,
+      1.0e-12,
+      1.0e-12
+    ],
+    "constantCostates": [
+      1.0e0,
+      1.0e-9,
+      1.0e-9,
+      1.0e9,
+      1.0e-9,
+      10.0
+    ]
+  }
+}

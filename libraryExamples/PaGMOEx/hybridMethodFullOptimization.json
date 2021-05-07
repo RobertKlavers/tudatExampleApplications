@@ -1,0 +1,57 @@
+{
+  "case": "FullOptimization",
+  "optimization": {
+    "numberOfSteps": 1000,
+    "numberOfGenerations": 100,
+    "numberOfIndividualsPerPopulation": 110,
+    "relativeToleranceConstraints": 1.0e-6
+  },
+  "vehicle": {
+    "maximumThrust": 0.350,
+    "specificImpulse": 2000.0,
+    "initialMass": 2000.0
+  },
+  "vehicle2": {
+    "maximumThrust": 1.0,
+    "specificImpulse": 3100.0,
+    "initialMass": 300.0
+  },
+  "trajectory": {
+    "timeOfFlight": 150.0,
+    "initialKeplerianElements": [
+      24505.9e3,
+      0.725,
+      0.122173,
+      1.0e-12,
+      1.0e-12,
+      1.0e-12
+    ],
+    "finalKeplerianElements": [
+      42165.0e3,
+      1.0e-12,
+      1.0e-12,
+      1.0e-12,
+      1.0e-12,
+      1.0e-12
+    ]
+  },
+  "trajectory2": {
+    "timeOfFlight": 4.0,
+    "initialKeplerianElements": [
+      7000.0e3,
+      0.001,
+      8.72664e-5,
+      1.0e-12,
+      1.0e-12,
+      1.0e-12
+    ],
+    "finalKeplerianElements": [
+      9000.0e3,
+      0.001,
+      8.72664e-4,
+      1.0e-12,
+      1.0e-12,
+      1.0e-12
+    ]
+  }
+}

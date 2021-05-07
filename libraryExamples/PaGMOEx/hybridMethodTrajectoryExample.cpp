@@ -21,10 +21,9 @@
 #include "pagmo/algorithms/de.hpp"
 #include "Problems/applicationOutput.h"
 #include "Tudat/Astrodynamics/BasicAstrodynamics/celestialBodyConstants.h"
+#include <json.hpp>
 
-// std::map< double, Eigen::Vector6d > propagateBenchmark() {
-//     std::cout << "omg " << std::endl;
-// }
+using json = nlohmann::json;
 
 int main() {
     using namespace tudat;
@@ -36,17 +35,29 @@ int main() {
     using namespace low_thrust_trajectories;
 
     spice_interface::loadStandardSpiceKernels();
+    // Retrieve the input json file
+    const std::string cppFilePath( __FILE__ );
+    const std::string cppFolder = cppFilePath.substr( 0 , cppFilePath.find_last_of("/\\")+1 );
 
-    double maximumThrust = 0.401706;
-    double specificImpulse = 3300.0;
-    double initialMass = 1200.0;
+    const std::string testCase = "FullOptimization";
+
+    // Read JSON file
+    std::ifstream inputstream(cppFolder + "hybridMethod" + testCase + ".json");
+    json input_data;
+    inputstream >> input_data;
+
+    // Vehicle Settings
+    double maximumThrust = input_data["vehicle"]["maximumThrust"];
+    double specificImpulse = input_data["vehicle"]["specificImpulse"];
+    double initialMass = input_data["vehicle"]["initialMass"];
 
     std::function<double(const double)> specificImpulseFunction = [=](const double currentTime) {
         return specificImpulse;
     };
 
+    // Trajectory Settings
     double julianDate = 0.0 * physical_constants::JULIAN_DAY;
-    double timeOfFlight = 218 * physical_constants::JULIAN_DAY;
+    double timeOfFlight = input_data["trajectory"]["timeOfFlight"].get<double>() * physical_constants::JULIAN_DAY;
 
     // Define body settings for simulation.
     std::vector<std::string> bodiesToCreate;
@@ -70,7 +81,6 @@ int main() {
     // Finalize body creation.
     setGlobalFrameBodyEphemerides(bodyMap, "Earth", "ECLIPJ2000");
 
-
     std::string bodyToPropagate = "Vehicle";
     std::string centralBody = "Earth";
     double centralBodyGravitationalParameter = bodyMap.at(
@@ -79,126 +89,162 @@ int main() {
     // Set vehicle mass.
     bodyMap[bodyToPropagate]->setConstantBodyMass(initialMass);
 
-    // Initial and final states in keplerian elements.
-    // Eigen::Vector6d initialKeplerianElements = (
-    //         Eigen::Vector6d( ) << 7000.0e3,
-    //         0.001,
-    //         0.005,
-    //         1.0e-12,
-    //         1.0e-12,
-    //         1.0e-12).finished( );
-    // Eigen::Vector6d finalKeplerianElements = (
-    //         Eigen::Vector6d( ) << 9000.0e3,
-    //         0.001,
-    //         5.0 * mathematical_constants::PI/180.0,
-    //         1.0e-12,
-    //         1.0e-12,
-    //         1.0e-12 ).finished( );
-
-    std::cout << "Setting up initial statestuff" << std::endl;
-
-    // Initial and final states in keplerian elements.
-    Eigen::Vector6d initialKeplerianElements = (
-            Eigen::Vector6d() << 24050.9e3,
-                    0.725,
-                    7.0 * mathematical_constants::PI / 180.0,
-                    1.0e-12,
-                    1.0e-12,
-                    1.0e-12).finished();
-    Eigen::Vector6d initialTestKeplerianElements = (
-            Eigen::Vector6d() << 6927.0e3,
-                    1.0e-12,
-                    28.5 * mathematical_constants::PI / 180.0,
-                    1.0e-12,
-                    1.0e-12,
-                    1.0e-12).finished();
-    Eigen::Vector6d finalKeplerianElements = (
-            Eigen::Vector6d() << 42165.0e3,
-                    1.0e-12,
-                    1.0e-12,
-                    1.0e-12,
-                    1.0e-12,
-                    1.0e-12).finished();
-    std::cout << "Setting up costates:" << std::endl;
-
-    Eigen::VectorXd initialTestCostates(6);
-    initialTestCostates << -0.021195, -38.677447, 42.482983, 499.322515, -67.364508, 10.0;
-
-    Eigen::VectorXd finalTestCostates(6);
-    finalTestCostates << -0.000078, 24.905070, 2.186083, 499.380629, 43.545684, 10.0;
-
-    // std::cout << initialTestCostates.transpose() << " <> " << finalTestCostates.transpose() << std::endl;
-
-    // Initial and final states in cartesian coordinates.
-    Eigen::Vector6d stateAtDeparture = orbital_element_conversions::convertKeplerianToCartesianElements(
-            initialTestKeplerianElements, bodyMap["Earth"]->getGravityFieldModel()->getGravitationalParameter());
-    Eigen::Vector6d stateAtArrival;
-
-    // stateAtArrival = orbital_element_conversions::convertKeplerianToCartesianElements(
-    //         finalKeplerianElements, bodyMap["Earth"]->getGravityFieldModel()->getGravitationalParameter());
-
-    // std::cout << initialKeplerianElements << std::endl;
-    // std::cout << finalKeplerianElements << std::endl;
-    //
-    // std::cout << stateAtDeparture << std::endl;
-    // std::cout << stateAtArrival << std::endl;
 
     // Define integrator settings.
-    double numberOfSteps = 15000;
-    double stepSize = (timeOfFlight) / static_cast< double >( numberOfSteps );
-    std::shared_ptr<numerical_integrators::IntegratorSettings<double> > weirdIntegratorSettings =
+    // int numberOfSteps = input_data["optimization"]["numberOfSteps"];
+    // double stepSize = (timeOfFlight) / static_cast< double >( numberOfSteps );
+    double stepSizeOpt = 500.0;
+    std::shared_ptr<numerical_integrators::IntegratorSettings<double> > integratorSettings =
             std::make_shared<numerical_integrators::IntegratorSettings<double> >
-                    (numerical_integrators::rungeKutta4, 0.0, stepSize);
+                    (numerical_integrators::rungeKutta4, 0.0, stepSizeOpt);
 
-    // Define optimisation algorithm.
-    algorithm optimisationAlgorithm{pagmo::de()};
-    optimisationAlgorithm.set_verbosity(1);
+    // ---- Case Specific Propagation ----
+    if (testCase == "SingleCostatePropagation") {
+        // Retrieve initial and final costates for simplified test
+        Eigen::VectorXd initialTestCostates = Eigen::VectorXd::Map(input_data["trajectory"]["constantCostates"].get<std::vector<double>>().data(), 6);
+        Eigen::VectorXd finalTestCostates = Eigen::VectorXd::Map(input_data["trajectory"]["constantCostates"].get<std::vector<double>>().data(), 6);
+        std::cout << initialTestCostates.transpose() << " <> " << finalTestCostates.transpose() << std::endl;
 
-    std::shared_ptr<simulation_setup::OptimisationSettings> optimisationSettings =
-            std::make_shared<simulation_setup::OptimisationSettings>(optimisationAlgorithm, 1, 150, 1.0e-3);
+        // Retrieve initial and final Keplerian Elements
+        Eigen::Vector6d initialKeplerianElements(input_data["trajectory"]["initialKeplerianElements"].get<std::vector<double>>().data());
+        // Initial and final states in cartesian coordinates.
+        Eigen::Vector6d stateAtDeparture = orbital_element_conversions::convertKeplerianToCartesianElements(
+                initialKeplerianElements, bodyMap["Earth"]->getGravityFieldModel()->getGravitationalParameter());
+        Eigen::Vector6d stateAtArrival;
 
-    // Create object with list of dependent variables
-    std::vector<std::shared_ptr<SingleDependentVariableSaveSettings> > dependentVariablesList;
-    dependentVariablesList.push_back(std::make_shared<SingleAccelerationDependentVariableSaveSettings>(
-            basic_astrodynamics::thrust_acceleration, bodyToPropagate, bodyToPropagate, 0));
-    std::shared_ptr<DependentVariableSaveSettings> dependentVariablesToSave =
-            std::make_shared<DependentVariableSaveSettings>(dependentVariablesList, false);
+        std::cout << "Making Test Hybrid Method Model" << std::endl;
+        HybridMethodModel hybridMethodModelTest = HybridMethodModel(
+                stateAtDeparture, stateAtArrival, initialTestCostates, finalTestCostates, maximumThrust, specificImpulse,
+                timeOfFlight,
+                bodyMap, bodyToPropagate, centralBody, integratorSettings);
+    } else if (testCase == "LinearCostatePropagation") {
+        // Retrieve initial and final costates for simplified test
+        Eigen::VectorXd initialTestCostates = Eigen::VectorXd::Map(input_data["trajectory"]["initialCostates"].get<std::vector<double>>().data(), 6);
+        Eigen::VectorXd finalTestCostates = Eigen::VectorXd::Map(input_data["trajectory"]["finalCostates"].get<std::vector<double>>().data(), 6);
+        std::cout << initialTestCostates.transpose() << " <> " << finalTestCostates.transpose() << std::endl;
+
+        // Retrieve initial and final Keplerian Elements
+        Eigen::Vector6d initialKeplerianElements(input_data["trajectory"]["initialKeplerianElements"].get<std::vector<double>>().data());
+        // Initial and final states in cartesian coordinates.
+        Eigen::Vector6d stateAtDeparture = orbital_element_conversions::convertKeplerianToCartesianElements(
+                initialKeplerianElements, bodyMap["Earth"]->getGravityFieldModel()->getGravitationalParameter());
+        Eigen::Vector6d stateAtArrival;
+
+        std::cout << "Making Test Hybrid Method Model" << std::endl;
+        HybridMethodModel hybridMethodModelTest = HybridMethodModel(
+                stateAtDeparture, stateAtArrival, initialTestCostates, finalTestCostates, maximumThrust, specificImpulse,
+                timeOfFlight,
+                bodyMap, bodyToPropagate, centralBody, integratorSettings);
+
+        std::pair<std::map< double, Eigen::VectorXd >, std::map< double, Eigen::VectorXd >> optimalTrajectory = hybridMethodModelTest.getTrajectoryOutput();
+
+
+        // Temporary stuff to directly store the dependent variable history (hopefully containing thrust acceleration profile)
+        std::cout << "Exporting Dependent Variable History!!" << std::endl;
+        input_output::writeDataMapToTextFile( optimalTrajectory.first,
+                                              "HybridMethodFinalTrajectoryHistory.dat",
+                                              tudat_pagmo_applications::getOutputPath(),
+                                              "",
+                                              std::numeric_limits< double >::digits10,
+                                              std::numeric_limits< double >::digits10,
+                                              "," );
+        input_output::writeDataMapToTextFile( optimalTrajectory.second,
+                                              "HybridMethodFinalDependentVariableHistory.dat",
+                                              tudat_pagmo_applications::getOutputPath(),
+                                              "",
+                                              std::numeric_limits< double >::digits10,
+                                              std::numeric_limits< double >::digits10,
+                                              "," );
+
+
+    } else if (testCase == "FullOptimization") {
+        // Retrieve initial and final Keplerian Elements
+        Eigen::Vector6d initialKeplerianElements(input_data["trajectory"]["initialKeplerianElements"].get<std::vector<double>>().data());
+        Eigen::Vector6d finalKeplerianElements(input_data["trajectory"]["finalKeplerianElements"].get<std::vector<double>>().data());
+
+        Eigen::Vector6d stateAtDeparture = orbital_element_conversions::convertKeplerianToCartesianElements(
+                initialKeplerianElements, bodyMap["Earth"]->getGravityFieldModel()->getGravitationalParameter());
+        Eigen::Vector6d stateAtArrival = orbital_element_conversions::convertKeplerianToCartesianElements(
+                finalKeplerianElements, bodyMap["Earth"]->getGravityFieldModel()->getGravitationalParameter());
+
+        // Define optimisation algorithm.
+        // algorithm optimisationAlgorithm{pagmo::de1220(input_data["optimization"]["numberOfGenerations"].get<int>())};
+        algorithm optimisationAlgorithm{pagmo::de1220()};
+        // algorithm optimisationAlgorithm{pagmo::de(input_data["optimization"]["numberOfGenerations"].get<int>(), 0.6, 0.8, 2, 1e-6, 1e-6)};
+        optimisationAlgorithm.set_verbosity(0);
+
+        std::shared_ptr<simulation_setup::OptimisationSettings> optimisationSettings =
+                std::make_shared<simulation_setup::OptimisationSettings>(optimisationAlgorithm,
+                                                                         input_data["optimization"]["numberOfGenerations"],
+                                                                         input_data["optimization"]["numberOfIndividualsPerPopulation"],
+                                                                         input_data["optimization"]["relativeToleranceConstraints"]);
+
+        const std::pair< double, double > initialAndFinalMEEcostatesBounds = std::make_pair( - 1.0e4, 1.0e4 );
+
+        HybridMethod hybridMethod = HybridMethod(stateAtDeparture, stateAtArrival, centralBodyGravitationalParameter,
+                                                 initialMass,
+                                                 maximumThrust, specificImpulse,
+                                                 timeOfFlight, bodyMap, bodyToPropagate, centralBody,
+                                                 integratorSettings,
+                                                 optimisationSettings, initialAndFinalMEEcostatesBounds);
+
+        std::shared_ptr<HybridMethodModel> hybridMethodModel = hybridMethod.getOptimalHybridMethodModel();
+
+        std::pair<std::map< double, Eigen::VectorXd >, std::map< double, Eigen::VectorXd >> optimalTrajectory = hybridMethodModel->getTrajectoryOutput();
+
+
+        // Temporary stuff to directly store the dependent variable history (hopefully containing thrust acceleration profile)
+        std::cout << "Exporting Dependent Variable History!!" << std::endl;
+        input_output::writeDataMapToTextFile( optimalTrajectory.first,
+                                              "HybridMethodFinalTrajectoryHistory.dat",
+                                              tudat_pagmo_applications::getOutputPath(),
+                                              "",
+                                              std::numeric_limits< double >::digits10,
+                                              std::numeric_limits< double >::digits10,
+                                              "," );
+        input_output::writeDataMapToTextFile( optimalTrajectory.second,
+                                              "HybridMethodFinalDependentVariableHistory.dat",
+                                              tudat_pagmo_applications::getOutputPath(),
+                                              "",
+                                              std::numeric_limits< double >::digits10,
+                                              std::numeric_limits< double >::digits10,
+                                              "," );
 
 
 
-    std::cout << "Making HybridMethodModelTest" << std::endl;
-    HybridMethodModel hybridMethodModelTest = HybridMethodModel(
-            stateAtDeparture, stateAtArrival, initialTestCostates, finalTestCostates, maximumThrust, specificImpulse,
-            timeOfFlight,
-            bodyMap, bodyToPropagate, centralBody, weirdIntegratorSettings);
+        // Results for full propagation
+        // std::map<double, Eigen::Vector6d> propagatedTrajectory;
+        // std::cout << " ---- Results ---- " << std::endl;
+        // std::cout << "m_prop:" << initialMass - hybridMethodModel->getMassAtTimeOfFlight() << std::endl;
+        // // take average progression, add those to the initialState and outputput as cartesian
+        // std::vector<double> epochsToSaveResults;
+        // std::map<double, Eigen::VectorXd> thrustAccelerationProfile;
+        // for (int i = 0; i <= numberOfSteps; i++) {
+        //     epochsToSaveResults.push_back(i * stepSize);
+        // }
+        // hybridMethod.getTrajectory(epochsToSaveResults, propagatedTrajectory);
+        //
+        // input_output::writeDataMapToTextFile(propagatedTrajectory,
+        //                                      "HybridMethodTrajectory.dat",
+        //                                      tudat_pagmo_applications::getOutputPath(),
+        //                                      "",
+        //                                      std::numeric_limits<double>::digits10,
+        //                                      std::numeric_limits<double>::digits10,
+        //                                      ",");
 
-    std::vector<double> testEpochsToSave;
-    for (int i = 0; i <= numberOfSteps; i++) {
-        testEpochsToSave.push_back(i * stepSize);
     }
-    std::map<double, Eigen::Vector6d> propagatedTestTrajectory;
-    std::cout << "Propagating HybridMethod Test" << std::endl;
-    hybridMethodModelTest.propagateTrajectory(testEpochsToSave, propagatedTestTrajectory);
 
-    input_output::writeDataMapToTextFile(propagatedTestTrajectory,
-                                         "HybridMethodTrajectoryTest.dat",
-                                         tudat_pagmo_applications::getOutputPath(),
-                                         "",
-                                         std::numeric_limits<double>::digits10,
-                                         std::numeric_limits<double>::digits10,
-                                         ",");
+    // // Create object with list of dependent variables
+    // // TODO Pass these on to the HybridMethodModel
+    // std::vector<std::shared_ptr<SingleDependentVariableSaveSettings> > dependentVariablesList;
+    // dependentVariablesList.push_back(std::make_shared<SingleAccelerationDependentVariableSaveSettings>(
+    //         basic_astrodynamics::thrust_acceleration, bodyToPropagate, bodyToPropagate, 0));
+    // std::shared_ptr<DependentVariableSaveSettings> dependentVariablesToSave =
+    //         std::make_shared<DependentVariableSaveSettings>(dependentVariablesList, false);
+
     return EXIT_SUCCESS;
-    // Create hybrid method trajectory.
-    HybridMethod hybridMethod = HybridMethod(stateAtDeparture, stateAtArrival, centralBodyGravitationalParameter,
-                                             initialMass,
-                                             maximumThrust, specificImpulse,
-                                             timeOfFlight, bodyMap, bodyToPropagate, centralBody,
-                                             weirdIntegratorSettings,
-                                             optimisationSettings);
-    std::shared_ptr<HybridMethodModel> hybridMethodModel = hybridMethod.getOptimalHybridMethodModel();
 
-    // Results for full propagation
-    std::map<double, Eigen::Vector6d> propagatedTrajectory;
+    // Create hybrid method trajectory.
     // std::vector< double > epochsToSaveResults;
     // for ( int i = 0 ; i <= numberOfSteps ; i++ )
     // {
@@ -249,8 +295,7 @@ int main() {
     //         // fileNameOA << "OATrajectory_" << caseName << "_" << numberOfOASteps << "_" << OAArcLength << ".dat";
     //         fileNameOA << "OATrajectory_" << "CaseBTest" << "_" << numberOfOASteps << "_" << OAArcLength << ".dat";
 
-    std::cout << " ---- Results ---- " << std::endl;
-    std::cout << "m_prop:" << initialMass - hybridMethodModel->getMassAtTimeOfFlight() << std::endl;
+
 
     // input_output::writeDataMapToTextFile( resultStates,
     //                                       fileNameOA.str(),
@@ -261,22 +306,6 @@ int main() {
     //                                       "," );
     //     }
     // }
-
-    // take average progression, add those to the initialState and outputput as cartesian
-    std::vector<double> epochsToSaveResults;
-    std::map<double, Eigen::VectorXd> thrustAccelerationProfile;
-    for (int i = 0; i <= numberOfSteps; i++) {
-        epochsToSaveResults.push_back(i * stepSize);
-    }
-    hybridMethod.getTrajectory(epochsToSaveResults, propagatedTrajectory);
-
-    input_output::writeDataMapToTextFile(propagatedTrajectory,
-                                         "HybridMethodTrajectory.dat",
-                                         tudat_pagmo_applications::getOutputPath(),
-                                         "",
-                                         std::numeric_limits<double>::digits10,
-                                         std::numeric_limits<double>::digits10,
-                                         ",");
 
     // Final statement.
     // The exit code EXIT_SUCCESS indicates that the program was successfully executed.
