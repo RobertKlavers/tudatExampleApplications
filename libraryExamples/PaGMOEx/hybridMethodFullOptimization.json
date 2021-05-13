@@ -2,19 +2,14 @@
   "case": "FullOptimization",
   "optimization": {
     "numberOfSteps": 1000,
-    "numberOfGenerations": 100,
+    "numberOfGenerations": 5,
     "numberOfIndividualsPerPopulation": 110,
-    "relativeToleranceConstraints": 1.0e-6
+    "relativeToleranceConstraints": 1.0e-3
   },
   "vehicle": {
     "maximumThrust": 0.350,
     "specificImpulse": 2000.0,
     "initialMass": 2000.0
-  },
-  "vehicle2": {
-    "maximumThrust": 1.0,
-    "specificImpulse": 3100.0,
-    "initialMass": 300.0
   },
   "trajectory": {
     "timeOfFlight": 150.0,

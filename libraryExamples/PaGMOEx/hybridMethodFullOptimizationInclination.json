@@ -1,0 +1,34 @@
+{
+  "case": "InclinationOptimization",
+  "optimization": {
+    "numberOfSteps": 1000,
+    "stepSize": 500.0,
+    "numberOfGenerations": 25,
+    "numberOfIndividualsPerPopulation": 1024,
+    "relativeToleranceConstraints": 1.0e-3
+  },
+  "vehicle": {
+    "maximumThrust": 0.350,
+    "specificImpulse": 2000.0,
+    "initialMass": 2000.0
+  },
+  "trajectory": {
+    "timeOfFlight": 25.0,
+    "initialKeplerianElements": [
+      9000.0e3,
+      0.01,
+      0.6981317007977318,
+      1.0e-12,
+      1.0e-12,
+      1.0e-12
+    ],
+    "finalKeplerianElements": [
+      9000.0e3,
+      0.01,
+      0.6806784082777885,
+      1.0e-12,
+      1.0e-12,
+      1.0e-12
+    ]
+  }
+}

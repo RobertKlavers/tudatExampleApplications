@@ -39,12 +39,27 @@ int main() {
     const std::string cppFilePath( __FILE__ );
     const std::string cppFolder = cppFilePath.substr( 0 , cppFilePath.find_last_of("/\\")+1 );
 
-    const std::string testCase = "FullOptimization";
+    const std::string testCase = "FullOptimizationInclination";
 
     // Read JSON file
     std::ifstream inputstream(cppFolder + "hybridMethod" + testCase + ".json");
     json input_data;
     inputstream >> input_data;
+
+    // Read Hybrid Optimisation Settings
+    inputstream.close();
+    inputstream.open(cppFolder + "OptimizerSettings.json");
+    json optimizer_settings;
+    inputstream >> optimizer_settings;
+
+    // TODO Read weights and constraints from input configuration
+    Eigen::Vector6d epsilon_upper(optimizer_settings["epsilon_upper"].get<std::vector<double>>().data());
+    Eigen::Vector6d constraint_weights(optimizer_settings["weight_constraints"].get<std::vector<double>>().data());
+    double weightMass = optimizer_settings["weight_mass"];
+    double weightTOF = optimizer_settings["weight_tof"];
+
+    std::shared_ptr<simulation_setup::HybridOptimisationSettings> hybridOptimisationSettings =
+            std::make_shared<simulation_setup::HybridOptimisationSettings>(epsilon_upper, constraint_weights, weightMass, weightTOF);
 
     // Vehicle Settings
     double maximumThrust = input_data["vehicle"]["maximumThrust"];
@@ -93,10 +108,10 @@ int main() {
     // Define integrator settings.
     // int numberOfSteps = input_data["optimization"]["numberOfSteps"];
     // double stepSize = (timeOfFlight) / static_cast< double >( numberOfSteps );
-    double stepSizeOpt = 500.0;
+    double stepSize = input_data["optimization"]["stepSize"];
     std::shared_ptr<numerical_integrators::IntegratorSettings<double> > integratorSettings =
             std::make_shared<numerical_integrators::IntegratorSettings<double> >
-                    (numerical_integrators::rungeKutta4, 0.0, stepSizeOpt);
+                    (numerical_integrators::rungeKutta4, 0.0, stepSize);
 
     // ---- Case Specific Propagation ----
     if (testCase == "SingleCostatePropagation") {
@@ -116,7 +131,7 @@ int main() {
         HybridMethodModel hybridMethodModelTest = HybridMethodModel(
                 stateAtDeparture, stateAtArrival, initialTestCostates, finalTestCostates, maximumThrust, specificImpulse,
                 timeOfFlight,
-                bodyMap, bodyToPropagate, centralBody, integratorSettings);
+                bodyMap, bodyToPropagate, centralBody, integratorSettings, hybridOptimisationSettings);
     } else if (testCase == "LinearCostatePropagation") {
         // Retrieve initial and final costates for simplified test
         Eigen::VectorXd initialTestCostates = Eigen::VectorXd::Map(input_data["trajectory"]["initialCostates"].get<std::vector<double>>().data(), 6);
@@ -134,7 +149,7 @@ int main() {
         HybridMethodModel hybridMethodModelTest = HybridMethodModel(
                 stateAtDeparture, stateAtArrival, initialTestCostates, finalTestCostates, maximumThrust, specificImpulse,
                 timeOfFlight,
-                bodyMap, bodyToPropagate, centralBody, integratorSettings);
+                bodyMap, bodyToPropagate, centralBody, integratorSettings, hybridOptimisationSettings);
 
         std::pair<std::map< double, Eigen::VectorXd >, std::map< double, Eigen::VectorXd >> optimalTrajectory = hybridMethodModelTest.getTrajectoryOutput();
 
@@ -157,7 +172,7 @@ int main() {
                                               "," );
 
 
-    } else if (testCase == "FullOptimization") {
+    } else if (testCase == "FullOptimization" || testCase == "FullOptimizationInclination" || testCase == "FullOptimizationInclinationGebett") {
         // Retrieve initial and final Keplerian Elements
         Eigen::Vector6d initialKeplerianElements(input_data["trajectory"]["initialKeplerianElements"].get<std::vector<double>>().data());
         Eigen::Vector6d finalKeplerianElements(input_data["trajectory"]["finalKeplerianElements"].get<std::vector<double>>().data());
@@ -169,15 +184,28 @@ int main() {
 
         // Define optimisation algorithm.
         // algorithm optimisationAlgorithm{pagmo::de1220(input_data["optimization"]["numberOfGenerations"].get<int>())};
-        algorithm optimisationAlgorithm{pagmo::de1220()};
-        // algorithm optimisationAlgorithm{pagmo::de(input_data["optimization"]["numberOfGenerations"].get<int>(), 0.6, 0.8, 2, 1e-6, 1e-6)};
+        // algorithm optimisationAlgorithm{pagmo::de1220()};
+        algorithm optimisationAlgorithm{pagmo::de()};
         optimisationAlgorithm.set_verbosity(0);
+
+
+        // Set up initial guess and the margins above and below (absolute instead of percentage wise as for thrust)
+        std::vector<double> initialGuessCostates{1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09};
+        // std::vector<double> initialGuessCostates{1e-09, 1e-09, 1e-09, 1.0e3, 1e-09, 1e-09,
+        //                                          1e-09, 1e-09, 1e-09, 1.0e3, 1e-09, 1e-09};
+        const std::pair< std::vector< double >, double > initialGuessAndBounds(initialGuessCostates, 1.0e4);
+
+
+
+
+
 
         std::shared_ptr<simulation_setup::OptimisationSettings> optimisationSettings =
                 std::make_shared<simulation_setup::OptimisationSettings>(optimisationAlgorithm,
                                                                          input_data["optimization"]["numberOfGenerations"],
                                                                          input_data["optimization"]["numberOfIndividualsPerPopulation"],
-                                                                         input_data["optimization"]["relativeToleranceConstraints"]);
+                                                                         input_data["optimization"]["relativeToleranceConstraints"],
+                                                                         initialGuessAndBounds);
 
         const std::pair< double, double > initialAndFinalMEEcostatesBounds = std::make_pair( - 1.0e4, 1.0e4 );
 
@@ -186,7 +214,7 @@ int main() {
                                                  maximumThrust, specificImpulse,
                                                  timeOfFlight, bodyMap, bodyToPropagate, centralBody,
                                                  integratorSettings,
-                                                 optimisationSettings, initialAndFinalMEEcostatesBounds);
+                                                 optimisationSettings, initialAndFinalMEEcostatesBounds, hybridOptimisationSettings);
 
         std::shared_ptr<HybridMethodModel> hybridMethodModel = hybridMethod.getOptimalHybridMethodModel();
 

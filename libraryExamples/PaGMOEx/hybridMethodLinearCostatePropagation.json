@@ -1,37 +1,38 @@
 {
   "case": "LinearCostatePropagation",
   "optimization": {
-    "numberOfSteps": 15000
+    "numberOfSteps": 15000,
+    "stepSize": 212.479464
   },
   "vehicle": {
-    "maximumThrust": 0.401706,
-    "specificImpulse": 3300.0,
-    "initialMass": 1200.0
-  },
+  "maximumThrust": 0.350,
+  "specificImpulse": 2000.0,
+  "initialMass": 2000.0
+},
   "trajectory": {
-    "timeOfFlight": 218.0,
+    "timeOfFlight": 12.12331,
     "initialKeplerianElements": [
-      6927.0e3,
-      1.0e-12,
-      0.4974188,
+      9000.0e3,
+      0.01,
+      0.6981317007977318,
       1.0e-12,
       1.0e-12,
       1.0e-12
     ],
     "initialCostates": [
-      -0.021195,
-      -38.677447,
-      42.482983,
-      1.0e9,
-      0.364508,
+      1.0e-9,
+      1.0e-9,
+      1.0e-9,
+      1.0e3,
+      1.0e-9,
       1.0e-9
     ],
     "finalCostates": [
-      -0.000078,
-      24.905070,
-      2.186083,
-      1.0e9,
-      0.545684,
+      1.0e-9,
+      1.0e-9,
+      1.0e-9,
+      1.0e3,
+      1.0e-9,
       1.0e-9
     ]
   }

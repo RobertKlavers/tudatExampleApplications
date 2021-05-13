@@ -1,0 +1,6 @@
+{
+  "weight_constraints": [0.0, 0.0, 1.0, 0.0, 0.0],
+  "weight_mass": 1000.0,
+  "weight_tof": 0.0,
+  "epsilon_upper": [100.0e3, 0.01, 0.1, 1.0, 1.0, 1.0]
+}
