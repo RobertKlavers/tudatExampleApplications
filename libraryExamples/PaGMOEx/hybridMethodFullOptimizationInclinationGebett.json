@@ -3,8 +3,8 @@
   "optimization": {
     "numberOfSteps": 1000,
     "stepSize": 200.0,
-    "numberOfGenerations": 100,
-    "numberOfIndividualsPerPopulation": 110,
+    "numberOfGenerations": 250,
+    "numberOfIndividualsPerPopulation":256,
     "relativeToleranceConstraints": 1.0e-6
   },
   "vehicle": {
@@ -13,19 +13,19 @@
     "initialMass": 300.0
   },
   "trajectory": {
-    "timeOfFlight": 15.0,
+    "timeOfFlight": 4.0,
     "initialKeplerianElements": [
       7000.0e3,
       0.001,
-      0.005,
+      8.7266e-05,
       1.0e-12,
       1.0e-12,
       1.0e-12
     ],
     "finalKeplerianElements": [
-      42000.0e3,
+      9000.0e3,
       0.001,
-      0.005,
+      8.7266e-4,
       1.0e-12,
       1.0e-12,
       1.0e-12

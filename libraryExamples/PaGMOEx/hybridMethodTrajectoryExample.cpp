@@ -39,10 +39,10 @@ int main() {
     const std::string cppFilePath( __FILE__ );
     const std::string cppFolder = cppFilePath.substr( 0 , cppFilePath.find_last_of("/\\")+1 );
 
-    const std::string testCase = "FullOptimizationInclination";
+    const std::string testCase = "FullOptimizationInclinationGebett";
 
     // Read JSON file
-    std::ifstream inputstream(cppFolder + "hybridMethod" + testCase + ".json");
+    std::ifstream inputstream(cppFolder + "hybridMethodFullOptimizationInclinationGebett.json");
     json input_data;
     inputstream >> input_data;
 
@@ -59,7 +59,7 @@ int main() {
     double weightTOF = optimizer_settings["weight_tof"];
 
     std::shared_ptr<simulation_setup::HybridOptimisationSettings> hybridOptimisationSettings =
-            std::make_shared<simulation_setup::HybridOptimisationSettings>(epsilon_upper, constraint_weights, weightMass, weightTOF);
+            std::make_shared<simulation_setup::HybridOptimisationSettings>(epsilon_upper, constraint_weights, weightMass, weightTOF, false);
 
     // Vehicle Settings
     double maximumThrust = input_data["vehicle"]["maximumThrust"];
@@ -172,6 +172,61 @@ int main() {
                                               "," );
 
 
+    } else if (testCase == "RandomCostatePropagation") {
+        int numRuns = 1000;
+        // Retrieve initial and final Keplerian Elements
+        Eigen::Vector6d initialKeplerianElements(input_data["trajectory"]["initialKeplerianElements"].get<std::vector<double>>().data());
+        Eigen::Vector6d finalKeplerianElements(input_data["trajectory"]["finalKeplerianElements"].get<std::vector<double>>().data());
+
+        Eigen::Vector6d stateAtDeparture = orbital_element_conversions::convertKeplerianToCartesianElements(
+                initialKeplerianElements, bodyMap["Earth"]->getGravityFieldModel()->getGravitationalParameter());
+        Eigen::Vector6d stateAtArrival = orbital_element_conversions::convertKeplerianToCartesianElements(
+                finalKeplerianElements, bodyMap["Earth"]->getGravityFieldModel()->getGravitationalParameter());
+
+        static std::default_random_engine e(42);
+        static std::uniform_real_distribution<> dis(-1.0e4, 1.0e4);
+
+        for (int run = 0; run < numRuns; run++){
+            Eigen::VectorXd initialCostates = Eigen::VectorXd::Zero( 6 );
+            Eigen::VectorXd finalCostates = Eigen::VectorXd::Zero( 6 );
+
+            bodyMap[bodyToPropagate]->setConstantBodyMass(initialMass);
+
+            // initialCostates[0] = 0.0;
+            // finalCostates[0] = 0.0;
+
+            for (int i = 0; i < 6; i++) {
+                initialCostates( i ) = dis(e);
+                finalCostates( i ) = dis(e);
+            }
+
+            HybridMethodModel currentMethodModel = HybridMethodModel(
+                    stateAtDeparture, stateAtArrival, initialCostates, finalCostates, maximumThrust, specificImpulse,
+                    timeOfFlight,
+                    bodyMap, bodyToPropagate, centralBody, integratorSettings, hybridOptimisationSettings);
+
+            std::pair<std::vector<double>, Eigen::Vector6d> fitnessResults = currentMethodModel.calculateFitness();
+
+            double totalEpsilon = 0;
+            for (auto& epsilon : fitnessResults.first) {
+                totalEpsilon += epsilon;
+            }
+            bool printDebug = false;
+            std::cout << "--- run: " << run << ", f: " << totalEpsilon << " ----" << fitnessResults.second[2] << std::endl;
+
+
+            if (printDebug == true) {
+                std::cout << "  eps: [";
+                for (auto &f : fitnessResults.first) {
+                    std::cout << f << ", ";
+                }
+                std::cout << "]" << std::endl;
+                std::cout << "  err: [" << fitnessResults.second.transpose() << "]" <<std::endl;
+                std::cout << "  cst: [" << initialCostates.transpose() << "] | [" << finalCostates.transpose() << "]" << std::endl;
+            }
+
+
+        }
     } else if (testCase == "FullOptimization" || testCase == "FullOptimizationInclination" || testCase == "FullOptimizationInclinationGebett") {
         // Retrieve initial and final Keplerian Elements
         Eigen::Vector6d initialKeplerianElements(input_data["trajectory"]["initialKeplerianElements"].get<std::vector<double>>().data());
@@ -193,12 +248,7 @@ int main() {
         std::vector<double> initialGuessCostates{1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09};
         // std::vector<double> initialGuessCostates{1e-09, 1e-09, 1e-09, 1.0e3, 1e-09, 1e-09,
         //                                          1e-09, 1e-09, 1e-09, 1.0e3, 1e-09, 1e-09};
-        const std::pair< std::vector< double >, double > initialGuessAndBounds(initialGuessCostates, 1.0e4);
-
-
-
-
-
+        const std::pair< std::vector< double >, double > initialGuessAndBounds(initialGuessCostates, 1.0e1);
 
         std::shared_ptr<simulation_setup::OptimisationSettings> optimisationSettings =
                 std::make_shared<simulation_setup::OptimisationSettings>(optimisationAlgorithm,
@@ -207,7 +257,7 @@ int main() {
                                                                          input_data["optimization"]["relativeToleranceConstraints"],
                                                                          initialGuessAndBounds);
 
-        const std::pair< double, double > initialAndFinalMEEcostatesBounds = std::make_pair( - 1.0e4, 1.0e4 );
+        const std::pair< double, double > initialAndFinalMEEcostatesBounds = std::make_pair( - 1.0e1, 1.0e1 );
 
         HybridMethod hybridMethod = HybridMethod(stateAtDeparture, stateAtArrival, centralBodyGravitationalParameter,
                                                  initialMass,

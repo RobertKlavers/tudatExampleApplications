@@ -3,8 +3,8 @@
   "optimization": {
     "numberOfSteps": 1000,
     "stepSize": 500.0,
-    "numberOfGenerations": 25,
-    "numberOfIndividualsPerPopulation": 1024,
+    "numberOfGenerations": 5,
+    "numberOfIndividualsPerPopulation": 110,
     "relativeToleranceConstraints": 1.0e-3
   },
   "vehicle": {
