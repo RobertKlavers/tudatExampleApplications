@@ -3,7 +3,7 @@
   "optimization": {
     "numberOfSteps": 1000,
     "stepSize": 200.0,
-    "numberOfGenerations": 250,
+    "numberOfGenerations": 4,
     "numberOfIndividualsPerPopulation":256,
     "relativeToleranceConstraints": 1.0e-6
   },

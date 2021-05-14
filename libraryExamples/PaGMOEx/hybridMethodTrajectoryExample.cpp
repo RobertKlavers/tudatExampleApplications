@@ -205,22 +205,15 @@ int main() {
                     timeOfFlight,
                     bodyMap, bodyToPropagate, centralBody, integratorSettings, hybridOptimisationSettings);
 
-            std::pair<std::vector<double>, Eigen::Vector6d> fitnessResults = currentMethodModel.calculateFitness();
+            std::pair<Eigen::VectorXd, Eigen::Vector6d> fitnessResults = currentMethodModel.calculateFitness();
 
-            double totalEpsilon = 0;
-            for (auto& epsilon : fitnessResults.first) {
-                totalEpsilon += epsilon;
-            }
+            double totalEpsilon = fitnessResults.first.sum();
             bool printDebug = false;
             std::cout << "--- run: " << run << ", f: " << totalEpsilon << " ----" << fitnessResults.second[2] << std::endl;
 
 
             if (printDebug == true) {
-                std::cout << "  eps: [";
-                for (auto &f : fitnessResults.first) {
-                    std::cout << f << ", ";
-                }
-                std::cout << "]" << std::endl;
+                std::cout << ", eps: [" << fitnessResults.first.transpose() << "]" << std::endl;
                 std::cout << "  err: [" << fitnessResults.second.transpose() << "]" <<std::endl;
                 std::cout << "  cst: [" << initialCostates.transpose() << "] | [" << finalCostates.transpose() << "]" << std::endl;
             }
@@ -265,28 +258,28 @@ int main() {
                                                  timeOfFlight, bodyMap, bodyToPropagate, centralBody,
                                                  integratorSettings,
                                                  optimisationSettings, initialAndFinalMEEcostatesBounds, hybridOptimisationSettings);
-
-        std::shared_ptr<HybridMethodModel> hybridMethodModel = hybridMethod.getOptimalHybridMethodModel();
-
-        std::pair<std::map< double, Eigen::VectorXd >, std::map< double, Eigen::VectorXd >> optimalTrajectory = hybridMethodModel->getTrajectoryOutput();
-
-
-        // Temporary stuff to directly store the dependent variable history (hopefully containing thrust acceleration profile)
-        std::cout << "Exporting Dependent Variable History!!" << std::endl;
-        input_output::writeDataMapToTextFile( optimalTrajectory.first,
-                                              "HybridMethodFinalTrajectoryHistory.dat",
-                                              tudat_pagmo_applications::getOutputPath(),
-                                              "",
-                                              std::numeric_limits< double >::digits10,
-                                              std::numeric_limits< double >::digits10,
-                                              "," );
-        input_output::writeDataMapToTextFile( optimalTrajectory.second,
-                                              "HybridMethodFinalDependentVariableHistory.dat",
-                                              tudat_pagmo_applications::getOutputPath(),
-                                              "",
-                                              std::numeric_limits< double >::digits10,
-                                              std::numeric_limits< double >::digits10,
-                                              "," );
+        // TTHE OPTIMAL TRAJECTORY IS SAVED IN HYBRIDMETHOD.CPP
+        // std::shared_ptr<HybridMethodModel> hybridMethodModel = hybridMethod.getOptimalHybridMethodModel();
+        //
+        // std::pair<std::map< double, Eigen::VectorXd >, std::map< double, Eigen::VectorXd >> optimalTrajectory = hybridMethodModel->getTrajectoryOutput();
+        //
+        //
+        // // Temporary stuff to directly store the dependent variable history (hopefully containing thrust acceleration profile)
+        // std::cout << "Exporting Dependent Variable History!!" << std::endl;
+        // input_output::writeDataMapToTextFile( optimalTrajectory.first,
+        //                                       "HybridMethodFinalTrajectoryHistory.dat",
+        //                                       tudat_pagmo_applications::getOutputPath(),
+        //                                       "",
+        //                                       std::numeric_limits< double >::digits10,
+        //                                       std::numeric_limits< double >::digits10,
+        //                                       "," );
+        // input_output::writeDataMapToTextFile( optimalTrajectory.second,
+        //                                       "HybridMethodFinalDependentVariableHistory.dat",
+        //                                       tudat_pagmo_applications::getOutputPath(),
+        //                                       "",
+        //                                       std::numeric_limits< double >::digits10,
+        //                                       std::numeric_limits< double >::digits10,
+        //                                       "," );
 
 
 
