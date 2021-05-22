@@ -228,4 +228,10 @@ if( BUILD_WITH_SOCIS_2019 )
  target_link_libraries(application_HybridMethodTrajectoryExample pagmo2_library_example_problems tudat_low_thrust_trajectories tudat_shape_based_methods
          tudat_numerical_quadrature ${TUDAT_PROPAGATION_LIBRARIES} pthread pagmo ${Boost_LIBRARIES} )
 
+ # Add Propagation Validation
+ add_executable(application_HybridMethodPropagationValidation "${SRCROOT}/hybridMethodPropagationValidation.cpp")
+ setup_executable_target(application_HybridMethodPropagationValidation "${SRCROOT}")
+ target_link_libraries(application_HybridMethodPropagationValidation pagmo2_library_example_problems tudat_low_thrust_trajectories tudat_shape_based_methods
+         tudat_numerical_quadrature ${TUDAT_PROPAGATION_LIBRARIES} pthread pagmo ${Boost_LIBRARIES} )
+
 endif( )
