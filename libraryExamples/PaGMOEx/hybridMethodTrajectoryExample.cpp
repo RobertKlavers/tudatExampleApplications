@@ -39,10 +39,12 @@ int main() {
     const std::string cppFilePath( __FILE__ );
     const std::string cppFolder = cppFilePath.substr( 0 , cppFilePath.find_last_of("/\\")+1 );
 
-    const std::string testCase = "FullOptimizationInclinationGebett";
+    const std::string testCase = "FullOptimization";
+    // const std::string testCase = "LinearCostatePropagation";
 
     // Read JSON file
-    std::ifstream inputstream(cppFolder + "hybridMethodFullOptimizationInclinationGebett.json");
+    std::ifstream inputstream(cppFolder + "hybridMethodFullOptimization.json");
+    // std::ifstream inputstream(cppFolder + "hybridMethodLinearCostatePropagation.json");
     json input_data;
     inputstream >> input_data;
 
@@ -108,7 +110,10 @@ int main() {
     // Define integrator settings.
     // int numberOfSteps = input_data["optimization"]["numberOfSteps"];
     // double stepSize = (timeOfFlight) / static_cast< double >( numberOfSteps );
-    double stepSize = input_data["optimization"]["stepSize"];
+    double numberOfSteps = input_data["optimization"]["numberOfSteps"];
+    double stepSize = 2.0 * mathematical_constants::PI / numberOfSteps;
+
+
     std::shared_ptr<numerical_integrators::IntegratorSettings<double> > integratorSettings =
             std::make_shared<numerical_integrators::IntegratorSettings<double> >
                     (numerical_integrators::rungeKutta4, 0.0, stepSize);
@@ -157,14 +162,14 @@ int main() {
         // Temporary stuff to directly store the dependent variable history (hopefully containing thrust acceleration profile)
         std::cout << "Exporting Dependent Variable History!!" << std::endl;
         input_output::writeDataMapToTextFile( optimalTrajectory.first,
-                                              "HybridMethodFinalTrajectoryHistory.dat",
+                                              "HybridMethodLinearCostateTrajectory.dat",
                                               tudat_pagmo_applications::getOutputPath(),
                                               "",
                                               std::numeric_limits< double >::digits10,
                                               std::numeric_limits< double >::digits10,
                                               "," );
         input_output::writeDataMapToTextFile( optimalTrajectory.second,
-                                              "HybridMethodFinalDependentVariableHistory.dat",
+                                              "HybridMethodLinearCostateDependentVariableHistory.dat",
                                               tudat_pagmo_applications::getOutputPath(),
                                               "",
                                               std::numeric_limits< double >::digits10,
@@ -220,7 +225,7 @@ int main() {
 
 
         }
-    } else if (testCase == "FullOptimization" || testCase == "FullOptimizationInclination" || testCase == "FullOptimizationInclinationGebett") {
+    } else if (testCase == "FullOptimization" || testCase == "FullOptimizationPlanarCoasting" || testCase == "FullOptimizationInclinationGebett") {
         // Retrieve initial and final Keplerian Elements
         Eigen::Vector6d initialKeplerianElements(input_data["trajectory"]["initialKeplerianElements"].get<std::vector<double>>().data());
         Eigen::Vector6d finalKeplerianElements(input_data["trajectory"]["finalKeplerianElements"].get<std::vector<double>>().data());
@@ -241,7 +246,7 @@ int main() {
         std::vector<double> initialGuessCostates{1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09};
         // std::vector<double> initialGuessCostates{1e-09, 1e-09, 1e-09, 1.0e3, 1e-09, 1e-09,
         //                                          1e-09, 1e-09, 1e-09, 1.0e3, 1e-09, 1e-09};
-        const std::pair< std::vector< double >, double > initialGuessAndBounds(initialGuessCostates, 1.0e1);
+        const std::pair< std::vector< double >, double > initialGuessAndBounds(initialGuessCostates, 1.0e4);
 
         std::shared_ptr<simulation_setup::OptimisationSettings> optimisationSettings =
                 std::make_shared<simulation_setup::OptimisationSettings>(optimisationAlgorithm,
@@ -250,7 +255,7 @@ int main() {
                                                                          input_data["optimization"]["relativeToleranceConstraints"],
                                                                          initialGuessAndBounds);
 
-        const std::pair< double, double > initialAndFinalMEEcostatesBounds = std::make_pair( - 1.0e1, 1.0e1 );
+        const std::pair< double, double > initialAndFinalMEEcostatesBounds = std::make_pair( - 1.0e4, 1.0e4 );
 
         HybridMethod hybridMethod = HybridMethod(stateAtDeparture, stateAtArrival, centralBodyGravitationalParameter,
                                                  initialMass,

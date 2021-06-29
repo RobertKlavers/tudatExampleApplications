@@ -3,8 +3,8 @@
   "optimization": {
     "numberOfSteps": 1000,
     "stepSize": 200.0,
-    "numberOfGenerations": 4,
-    "numberOfIndividualsPerPopulation":256,
+    "numberOfGenerations": 500,
+    "numberOfIndividualsPerPopulation": 256,
     "relativeToleranceConstraints": 1.0e-6
   },
   "vehicle": {
@@ -17,7 +17,7 @@
     "initialKeplerianElements": [
       7000.0e3,
       0.001,
-      8.7266e-05,
+      8.72664e-5,
       1.0e-12,
       1.0e-12,
       1.0e-12
@@ -25,7 +25,7 @@
     "finalKeplerianElements": [
       9000.0e3,
       0.001,
-      8.7266e-4,
+      0.05,
       1.0e-12,
       1.0e-12,
       1.0e-12

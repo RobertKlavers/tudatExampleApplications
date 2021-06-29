@@ -1,28 +1,28 @@
 {
-  "case": "FullOptimization",
+  "case": "FullOptimizationPlanarCoasting",
   "optimization": {
-    "numberOfSteps": 40,
-    "numberOfGenerations": 2500,
-    "numberOfIndividualsPerPopulation": 180,
+    "numberOfSteps": 30,
+    "numberOfGenerations": 1500,
+    "numberOfIndividualsPerPopulation": 110,
     "relativeToleranceConstraints": 1.0e-6
   },
   "vehicle": {
-    "maximumThrust": 0.350,
+    "maximumThrust": 1.50,
     "specificImpulse": 2000.0,
     "initialMass": 2000.0
   },
   "trajectory": {
-    "timeOfFlight": 150.01,
+    "timeOfFlight": 50.01,
     "initialKeplerianElements": [
-      24505.9e3,
-      0.725,
-      0.122173,
+      14262.0e3,
+      0.5,
+      1.0e-12,
       1.0e-12,
       1.0e-12,
       1.0e-12
     ],
     "finalKeplerianElements": [
-      42165.0e3,
+      21393.0e3,
       1.0e-12,
       1.0e-12,
       1.0e-12,
